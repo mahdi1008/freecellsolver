@@ -11,6 +11,7 @@ type game struct {
 	Solved  [4]*SolvedPlace
 	StandBy [4]*StandByPlace
 	Ground  [8]*Line
+	Moves   []*Move `hash:"ignore"`
 }
 
 func NewGame(solved [4]*SolvedPlace, standBy [4]*StandByPlace) *game {
@@ -47,8 +48,8 @@ func (g *game) AddLineOfGround(s string, lineNumber int) {
 func (g *game) print() {
 	fmt.Println("C  H  S  D    -Free cell-   X  X  X  X ")
 	fmt.Printf("%s %s %s %s   -Free cell-   %s %s %s %s\n",
-		g.Solved[0].card.str(), g.Solved[1].card.str(), g.Solved[2].card.str(), g.Solved[3].card.str(),
-		g.StandBy[0].card.str(), g.StandBy[1].card.str(), g.StandBy[2].card.str(), g.StandBy[3].card.str())
+		g.Solved[0].Card.str(), g.Solved[1].Card.str(), g.Solved[2].Card.str(), g.Solved[3].Card.str(),
+		g.StandBy[0].Card.str(), g.StandBy[1].Card.str(), g.StandBy[2].Card.str(), g.StandBy[3].Card.str())
 
 	for i := 0; i < g.LongestDeck(); i++ {
 		for _, l := range g.Ground {
@@ -63,18 +64,20 @@ func (g *game) print() {
 
 }
 
-func (g *game) Move(so Source, si Sink) error {
-	if !g.ValidateMove(so, si) {
+func (g *game) Move(m *Move) error {
+	if !g.ValidateMove(m.source, m.sink) {
 		return errors.New("invalid move")
 	}
-	card, err := so.pop()
+	card, err := m.source.pop()
 	if err != nil {
 		return err
 	}
-	err = si.push(card)
+	err = m.sink.push(card)
 	if err != nil {
 		return err
 	}
+	g.AddMove(m)
+
 	return nil
 }
 
@@ -88,25 +91,38 @@ func (g *game) ValidateMove(so Source, si Sink) bool {
 	return false
 }
 
-func (g *game) FindMove() (Source, Sink) {
+func (g *game) FindMove() []*Move {
+	moves := make([]*Move, 0)
 	for _, d := range g.StandBy {
 		for _, so := range g.Solved {
 			if g.ValidateMove(d, so) {
-				return d, so
+				move := &Move{
+					source: d,
+					sink:   so,
+				}
+				moves = append(moves, move)
 			}
 		}
 	}
 	for _, gr := range g.Ground {
 		for _, so := range g.Solved {
 			if g.ValidateMove(gr, so) {
-				return gr, so
+				move := &Move{
+					source: gr,
+					sink:   so,
+				}
+				moves = append(moves, move)
 			}
 		}
 	}
 	for _, gr1 := range g.Ground {
 		for _, gr2 := range g.Ground {
 			if g.ValidateMove(gr1, gr2) {
-				return gr1, gr2
+				move := &Move{
+					source: gr1,
+					sink:   gr2,
+				}
+				moves = append(moves, move)
 			}
 
 		}
@@ -114,7 +130,11 @@ func (g *game) FindMove() (Source, Sink) {
 	for _, gr := range g.Ground {
 		for _, st := range g.StandBy {
 			if g.ValidateMove(gr, st) {
-				return gr, st
+				move := &Move{
+					source: gr,
+					sink:   st,
+				}
+				moves = append(moves, move)
 			}
 
 		}
@@ -122,10 +142,27 @@ func (g *game) FindMove() (Source, Sink) {
 	for _, st := range g.StandBy {
 		for _, gr := range g.Ground {
 			if g.ValidateMove(st, gr) {
-				return st, gr
+				move := &Move{
+					source: st,
+					sink:   gr,
+				}
+				moves = append(moves, move)
 			}
 
 		}
 	}
-	return nil, nil
+	return moves
+}
+
+func (g *game) AddMove(m *Move) {
+	g.Moves = append(g.Moves, m)
+}
+
+func (g *game) RevertMove() {
+	m := g.Moves[len(g.Moves)-1]
+	source := m.source
+	sink := m.sink
+	card, _ := sink.revertPush()
+	g.Moves = g.Moves[:len(g.Moves)-1]
+	source.revertPop(card)
 }

@@ -7,11 +7,11 @@ import (
 )
 
 type Place struct {
-	card Card
+	Card Card
 }
 
 func (p *Place) getLastCard() Card {
-	return p.card
+	return p.Card
 }
 
 type SolvedPlace struct {
@@ -22,15 +22,13 @@ type SolvedPlace struct {
 
 func NewSolvedPlace(suit string) *SolvedPlace {
 	return &SolvedPlace{
-		Place: Place{card: NilCard},
+		Place: Place{Card: NilCard},
 		Suit:  suit,
 	}
 }
 
 func (sp *SolvedPlace) canPlaced(card Card) bool {
-	fmt.Println("Solved: ")
-
-	if strings.ToLower(sp.Suit) == strings.ToLower(card.Suit) && valueMap[card.Value] == valueMap[sp.getLastCard().Value]+1 {
+	if strings.ToLower(sp.Suit) == strings.ToLower(card.Suit) && ValueMap[card.Value] == ValueMap[sp.getLastCard().Value]+1 {
 		return true
 	}
 	return false
@@ -41,8 +39,22 @@ func (sp *SolvedPlace) String() string {
 }
 
 func (sp *SolvedPlace) push(card Card) error {
-	sp.card = card
+	sp.Card = card
 	return nil
+}
+
+func (sp *SolvedPlace) revertPush() (Card, error) {
+	if sp.Card == NilCard {
+		return NilCard, errors.New("invalid pop")
+	}
+	c := sp.Card
+	if ValueMap[sp.Card.Value] == 1 {
+		sp.Card = NilCard
+	} else {
+		v := ValueMap[sp.Card.Value] - 1
+		sp.Card.Value = InverseValueMap[v]
+	}
+	return c, nil
 }
 
 type StandByPlace struct {
@@ -53,7 +65,7 @@ type StandByPlace struct {
 
 func NewStandByPlace(index uint8) *StandByPlace {
 	return &StandByPlace{
-		Place: Place{card: NilCard},
+		Place: Place{Card: NilCard},
 		Index: index,
 	}
 }
@@ -70,8 +82,8 @@ func (sp *StandByPlace) String() string {
 }
 
 func (sp *StandByPlace) push(card Card) error {
-	if sp.card == NilCard {
-		sp.card = card
+	if sp.Card == NilCard {
+		sp.Card = card
 		return nil
 	} else {
 		return errors.New("invalid push")
@@ -79,9 +91,28 @@ func (sp *StandByPlace) push(card Card) error {
 }
 
 func (sp *StandByPlace) pop() (Card, error) {
-	if sp.card != NilCard {
-		c := sp.card
-		sp.card = NilCard
+	if sp.Card != NilCard {
+		c := sp.Card
+		sp.Card = NilCard
+		return c, nil
+	} else {
+		return NilCard, errors.New("invalid pop")
+	}
+}
+
+func (sp *StandByPlace) revertPop(card Card) error {
+	if sp.Card == NilCard {
+		sp.Card = card
+		return nil
+	} else {
+		return errors.New("invalid push")
+	}
+}
+
+func (sp *StandByPlace) revertPush() (Card, error) {
+	if sp.Card != NilCard {
+		c := sp.Card
+		sp.Card = NilCard
 		return c, nil
 	} else {
 		return NilCard, errors.New("invalid pop")
