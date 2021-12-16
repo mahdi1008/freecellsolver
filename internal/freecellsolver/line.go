@@ -59,6 +59,9 @@ func (l *Line) revertPop(card Card) error {
 
 func (l *Line) canPlaced(card Card) bool {
 	lastCard := l.getLastCard()
+	if lastCard == NilCard {
+		return true
+	}
 	if !isOppositeColor(lastCard.Suit, card.Suit) {
 		return false
 	}

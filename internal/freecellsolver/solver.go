@@ -7,18 +7,6 @@ import (
 	"os"
 )
 
-var ValueMap = map[string]int{
-	"A": 1, "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8, "9": 9, "X": 10, "J": 11, "Q": 12, "K": 13,
-}
-
-var InverseValueMap = map[int]string{
-	1: "A", 2: "2", 3: "3", 4: "4", 5: "5", 6: "6", 7: "7", 8: "8", 9: "9", 10: "X", 11: "J", 12: "Q", 13: "K",
-}
-
-var suitMap = map[string]string{
-	"s": "spades", "d": "diamonds", "h": "hearts", "c": "clubs",
-}
-
 var seenMap = map[uint]bool{}
 
 // Source & Sink
@@ -56,32 +44,38 @@ func (m *Move) String() string {
 //
 
 func solve(game *game) bool {
-	for {
-		game.print()
-		// time.Sleep(1 * time.Second)
-		h, _ := game.Hash()
-		// if seenMap[h] == true {
-		// 	panic("unexpected situation")
-		// }
-		seenMap[h] = true
+	game.print()
+	if !game.ValidateGame() {
+		fmt.Println("Invalid game")
+		fmt.Println(game.Moves)
+		panic("Invalid game")
+	}
+	// time.Sleep(1 * time.Second)
+	h, _ := game.Hash()
+	// if seenMap[h] == true {
+	// 	panic("unexpected situation")
+	// }
+	seenMap[h] = true
 
-		moves := game.FindMove()
-		for _, m := range moves {
-			game.Move(m)
-			h, _ = game.Hash()
-			if seenMap[h] {
-				game.RevertMove()
-			} else {
-				break
-			}
+	moves := game.FindMove()
+	for m := range moves {
+		h, _ = game.Hash()
+		fmt.Printf("Move is: %v", m)
+		anotherGame := game
+		anotherGame.Move(m)
+		if !seenMap[h] {
+			go solve(anotherGame)
 		}
 	}
+	// game.RevertMove()
+	// fmt.Println("-----------------")
+	return false
 }
 
 func Run() {
 	file, err := os.Open("data.in")
 
-	initialSolved := [4]*SolvedPlace{NewSolvedPlace("C"), NewSolvedPlace("H"), NewSolvedPlace("S"), NewSolvedPlace("D")}
+	initialSolved := [4]*SolvedPlace{NewSolvedPlace("c"), NewSolvedPlace("h"), NewSolvedPlace("s"), NewSolvedPlace("d")}
 	initialStandBy := [4]*StandByPlace{NewStandByPlace(0), NewStandByPlace(1), NewStandByPlace(2), NewStandByPlace(3)}
 	game := NewGame(initialSolved, initialStandBy)
 

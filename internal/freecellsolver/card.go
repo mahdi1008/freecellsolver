@@ -11,7 +11,7 @@ var NilCard = Card{
 }
 
 func (c Card) str() string {
-	return c.Value + c.Suit
+	return string(c.Value + c.Suit)
 }
 
 func (c *Card) isNil() bool {

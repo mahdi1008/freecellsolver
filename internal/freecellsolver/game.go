@@ -91,67 +91,72 @@ func (g *game) ValidateMove(so Source, si Sink) bool {
 	return false
 }
 
-func (g *game) FindMove() []*Move {
-	moves := make([]*Move, 0)
-	for _, d := range g.StandBy {
-		for _, so := range g.Solved {
-			if g.ValidateMove(d, so) {
-				move := &Move{
-					source: d,
-					sink:   so,
-				}
-				moves = append(moves, move)
-			}
-		}
-	}
-	for _, gr := range g.Ground {
-		for _, so := range g.Solved {
-			if g.ValidateMove(gr, so) {
-				move := &Move{
-					source: gr,
-					sink:   so,
-				}
-				moves = append(moves, move)
-			}
-		}
-	}
-	for _, gr1 := range g.Ground {
-		for _, gr2 := range g.Ground {
-			if g.ValidateMove(gr1, gr2) {
-				move := &Move{
-					source: gr1,
-					sink:   gr2,
-				}
-				moves = append(moves, move)
-			}
+func (g *game) FindMove() <-chan *Move {
+	ch := make(chan *Move)
 
-		}
-	}
-	for _, gr := range g.Ground {
-		for _, st := range g.StandBy {
-			if g.ValidateMove(gr, st) {
-				move := &Move{
-					source: gr,
-					sink:   st,
+	go func(moves chan<- *Move) {
+		for _, d := range g.StandBy {
+			for _, so := range g.Solved {
+				if g.ValidateMove(d, so) {
+					move := &Move{
+						source: d,
+						sink:   so,
+					}
+					moves <- move
 				}
-				moves = append(moves, move)
 			}
-
 		}
-	}
-	for _, st := range g.StandBy {
 		for _, gr := range g.Ground {
-			if g.ValidateMove(st, gr) {
-				move := &Move{
-					source: st,
-					sink:   gr,
+			for _, so := range g.Solved {
+				if g.ValidateMove(gr, so) {
+					move := &Move{
+						source: gr,
+						sink:   so,
+					}
+					moves <- move
 				}
-				moves = append(moves, move)
 			}
-
 		}
-	}
-	return moves
+		for _, gr1 := range g.Ground {
+			for _, gr2 := range g.Ground {
+				if g.ValidateMove(gr1, gr2) {
+					move := &Move{
+						source: gr1,
+						sink:   gr2,
+					}
+					moves <- move
+				}
+
+			}
+		}
+		for _, gr := range g.Ground {
+			for _, st := range g.StandBy {
+				if g.ValidateMove(gr, st) {
+					move := &Move{
+						source: gr,
+						sink:   st,
+					}
+					moves <- move
+				}
+
+			}
+		}
+		for _, st := range g.StandBy {
+			for _, gr := range g.Ground {
+				if g.ValidateMove(st, gr) {
+					move := &Move{
+						source: st,
+						sink:   gr,
+					}
+					moves <- move
+				}
+
+			}
+		}
+		close(moves)
+	}(ch)
+
+	return ch
 }
 
 func (g *game) AddMove(m *Move) {
@@ -165,4 +170,88 @@ func (g *game) RevertMove() {
 	card, _ := sink.revertPush()
 	g.Moves = g.Moves[:len(g.Moves)-1]
 	source.revertPop(card)
+}
+
+func (g *game) ValidateGame() bool {
+	m := make(map[string]bool)
+
+	for v := range ValueMap {
+		for s := range suitMap {
+			m[v+s] = false
+		}
+	}
+	if g.Solved[0].getLastCard() != NilCard {
+		for i := 1; i <= ValueMap[g.Solved[0].getLastCard().Value]; i++ {
+			if m[InverseValueMap[i]+g.Solved[0].Suit] {
+				return false
+			}
+			m[InverseValueMap[i]+g.Solved[0].Suit] = true
+		}
+	}
+	if g.Solved[1].getLastCard() != NilCard {
+		for i := 1; i <= ValueMap[g.Solved[1].getLastCard().Value]; i++ {
+			if m[InverseValueMap[i]+g.Solved[1].Suit] {
+				return false
+			}
+			m[InverseValueMap[i]+g.Solved[1].Suit] = true
+		}
+	}
+	if g.Solved[2].getLastCard() != NilCard {
+		for i := 1; i <= ValueMap[g.Solved[2].getLastCard().Value]; i++ {
+			if m[InverseValueMap[i]+g.Solved[2].Suit] {
+				return false
+			}
+			m[InverseValueMap[i]+g.Solved[2].Suit] = true
+		}
+	}
+	if g.Solved[3].getLastCard() != NilCard {
+		for i := 1; i <= ValueMap[g.Solved[3].getLastCard().Value]; i++ {
+			if m[InverseValueMap[i]+g.Solved[3].Suit] {
+				return false
+			}
+			m[InverseValueMap[i]+g.Solved[3].Suit] = true
+		}
+	}
+	for _, s := range g.StandBy {
+		if s.getLastCard() != NilCard {
+			if m[s.getLastCard().str()] {
+				return false
+			}
+			m[s.getLastCard().str()] = true
+		}
+	}
+	for _, l := range g.Ground {
+		for _, c := range l.Cards {
+			if m[c.str()] {
+				return false
+			}
+			m[c.str()] = true
+		}
+	}
+	sumCards := 0
+	sumClubs := 0
+	sumDiamonds := 0
+	sumHearts := 0
+	sumSpades := 0
+	for k, v := range m {
+		if v {
+			sumCards++
+			if k[1] == 'c' {
+				sumClubs++
+			}
+			if k[1] == 'd' {
+				sumDiamonds++
+			}
+			if k[1] == 'h' {
+				sumHearts++
+			}
+			if k[1] == 's' {
+				sumSpades++
+			}
+		}
+	}
+	if sumCards != 52 || sumClubs != 13 || sumDiamonds != 13 || sumHearts != 13 || sumSpades != 13 {
+		return false
+	}
+	return true
 }
