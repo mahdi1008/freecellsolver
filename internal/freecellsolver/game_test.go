@@ -6,11 +6,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func GetSampleGame() *game {
+func GetSampleGame() *Game {
 
 	initialSolved := [4]*SolvedPlace{NewSolvedPlace("c"), NewSolvedPlace("h"), NewSolvedPlace("s"), NewSolvedPlace("d")}
 	initialStandBy := [4]*StandByPlace{NewStandByPlace(0), NewStandByPlace(1), NewStandByPlace(2), NewStandByPlace(3)}
-	g := &game{
+	g := &Game{
 		Solved:  initialSolved,
 		StandBy: initialStandBy,
 		Ground: [8]*Line{
@@ -28,6 +28,7 @@ func GetSampleGame() *game {
 }
 
 func TestValidateGame(t *testing.T) {
+	initMaps()
 	g := GetSampleGame()
 	assert.True(t, g.ValidateGame())
 

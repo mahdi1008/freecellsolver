@@ -21,6 +21,14 @@ func (c *Card) isNil() bool {
 	return false
 }
 
+func (c Card) GetValue() string {
+	return string(c.Value)
+}
+
+func (c Card) GetSuit() string {
+	return string(c.Suit)
+}
+
 func NewCard(s string) *Card {
 	c := &Card{
 		Value: string(s[0]),

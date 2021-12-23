@@ -27,5 +27,17 @@ func isOppositeColor(suit1, suit2 string) bool {
 	if suit1 == "h" && suit2 == "d" {
 		return false
 	}
+	if suit1 == "c" && suit2 == "c" {
+		return false
+	}
+	if suit1 == "s" && suit2 == "s" {
+		return false
+	}
+	if suit1 == "d" && suit2 == "d" {
+		return false
+	}
+	if suit1 == "h" && suit2 == "h" {
+		return false
+	}
 	return true
 }

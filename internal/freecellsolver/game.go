@@ -7,21 +7,21 @@ import (
 	"github.com/mitchellh/hashstructure/v2"
 )
 
-type game struct {
+type Game struct {
 	Solved  [4]*SolvedPlace
 	StandBy [4]*StandByPlace
 	Ground  [8]*Line
-	Moves   []*Move `hash:"ignore"`
+	Moves   []Move `hash:"ignore"`
 }
 
-func NewGame(solved [4]*SolvedPlace, standBy [4]*StandByPlace) *game {
-	return &game{
+func NewGame(solved [4]*SolvedPlace, standBy [4]*StandByPlace) *Game {
+	return &Game{
 		Solved:  solved,
 		StandBy: standBy,
 	}
 }
 
-func (g *game) LongestDeck() int {
+func (g *Game) LongestDeck() int {
 	mx := 0
 	for _, l := range g.Ground {
 		if l.size() > mx {
@@ -31,7 +31,7 @@ func (g *game) LongestDeck() int {
 	return mx
 }
 
-func (g game) Hash() (uint, error) {
+func (g *Game) Hash() (uint, error) {
 	h, err := hashstructure.Hash(g, hashstructure.FormatV2, nil)
 	if err != nil {
 		return 0, errors.New("could not hash")
@@ -39,13 +39,13 @@ func (g game) Hash() (uint, error) {
 	return uint(h), nil
 }
 
-func (g *game) AddLineOfGround(s string, lineNumber int) {
+func (g *Game) AddLineOfGround(s string, lineNumber int) {
 	l := convertStringToLine(s)
 	l.index = int8(lineNumber)
 	g.Ground[lineNumber] = l
 }
 
-func (g *game) print() {
+func (g *Game) print() {
 	fmt.Println("C  H  S  D    -Free cell-   X  X  X  X ")
 	fmt.Printf("%s %s %s %s   -Free cell-   %s %s %s %s\n",
 		g.Solved[0].Card.str(), g.Solved[1].Card.str(), g.Solved[2].Card.str(), g.Solved[3].Card.str(),
@@ -64,7 +64,7 @@ func (g *game) print() {
 
 }
 
-func (g *game) Move(m *Move) error {
+func (g *Game) Move(m Move) error {
 	if !g.ValidateMove(m.source, m.sink) {
 		return errors.New("invalid move")
 	}
@@ -81,7 +81,7 @@ func (g *game) Move(m *Move) error {
 	return nil
 }
 
-func (g *game) ValidateMove(so Source, si Sink) bool {
+func (g *Game) ValidateMove(so Source, si Sink) bool {
 	if so.getLastCard() == NilCard {
 		return false
 	}
@@ -91,14 +91,15 @@ func (g *game) ValidateMove(so Source, si Sink) bool {
 	return false
 }
 
-func (g *game) FindMove() <-chan *Move {
-	ch := make(chan *Move)
+func (g *Game) FindMove() <-chan Move {
+	ch := make(chan Move)
 
-	go func(moves chan<- *Move) {
+	go func(moves chan<- Move) {
+		defer close(moves)
 		for _, d := range g.StandBy {
 			for _, so := range g.Solved {
 				if g.ValidateMove(d, so) {
-					move := &Move{
+					move := Move{
 						source: d,
 						sink:   so,
 					}
@@ -109,7 +110,7 @@ func (g *game) FindMove() <-chan *Move {
 		for _, gr := range g.Ground {
 			for _, so := range g.Solved {
 				if g.ValidateMove(gr, so) {
-					move := &Move{
+					move := Move{
 						source: gr,
 						sink:   so,
 					}
@@ -120,7 +121,7 @@ func (g *game) FindMove() <-chan *Move {
 		for _, gr1 := range g.Ground {
 			for _, gr2 := range g.Ground {
 				if g.ValidateMove(gr1, gr2) {
-					move := &Move{
+					move := Move{
 						source: gr1,
 						sink:   gr2,
 					}
@@ -132,7 +133,7 @@ func (g *game) FindMove() <-chan *Move {
 		for _, gr := range g.Ground {
 			for _, st := range g.StandBy {
 				if g.ValidateMove(gr, st) {
-					move := &Move{
+					move := Move{
 						source: gr,
 						sink:   st,
 					}
@@ -144,7 +145,7 @@ func (g *game) FindMove() <-chan *Move {
 		for _, st := range g.StandBy {
 			for _, gr := range g.Ground {
 				if g.ValidateMove(st, gr) {
-					move := &Move{
+					move := Move{
 						source: st,
 						sink:   gr,
 					}
@@ -153,17 +154,16 @@ func (g *game) FindMove() <-chan *Move {
 
 			}
 		}
-		close(moves)
 	}(ch)
 
 	return ch
 }
 
-func (g *game) AddMove(m *Move) {
+func (g *Game) AddMove(m Move) {
 	g.Moves = append(g.Moves, m)
 }
 
-func (g *game) RevertMove() {
+func (g *Game) RevertMove() {
 	m := g.Moves[len(g.Moves)-1]
 	source := m.source
 	sink := m.sink
@@ -172,44 +172,52 @@ func (g *game) RevertMove() {
 	source.revertPop(card)
 }
 
-func (g *game) ValidateGame() bool {
+func (g *Game) ValidateGame() bool {
+	ValueMap.RLock()
+	defer ValueMap.RUnlock()
+	InverseValueMap.RLock()
+	defer InverseValueMap.RUnlock()
+	SuitMap.RLock()
+	defer SuitMap.RUnlock()
+
 	m := make(map[string]bool)
 
-	for v := range ValueMap {
-		for s := range suitMap {
+	for v := range ValueMap.m {
+		for s := range SuitMap.m {
 			m[v+s] = false
 		}
 	}
 	if g.Solved[0].getLastCard() != NilCard {
-		for i := 1; i <= ValueMap[g.Solved[0].getLastCard().Value]; i++ {
-			if m[InverseValueMap[i]+g.Solved[0].Suit] {
+		for i := 1; i <= ValueMap.m[g.Solved[0].getLastCard().GetValue()]; i++ {
+			if m[InverseValueMap.m[i]+g.Solved[0].GetSuit()] {
 				return false
 			}
-			m[InverseValueMap[i]+g.Solved[0].Suit] = true
+			fmt.Println(InverseValueMap.m[i] + g.Solved[0].GetSuit())
+			m[InverseValueMap.m[i]+g.Solved[0].GetSuit()] = true
 		}
 	}
 	if g.Solved[1].getLastCard() != NilCard {
-		for i := 1; i <= ValueMap[g.Solved[1].getLastCard().Value]; i++ {
-			if m[InverseValueMap[i]+g.Solved[1].Suit] {
+		for i := 1; i <= ValueMap.m[g.Solved[1].getLastCard().GetValue()]; i++ {
+			if m[InverseValueMap.m[i]+g.Solved[1].GetSuit()] {
 				return false
 			}
-			m[InverseValueMap[i]+g.Solved[1].Suit] = true
+			m[InverseValueMap.m[i]+g.Solved[1].GetSuit()] = true
 		}
 	}
 	if g.Solved[2].getLastCard() != NilCard {
-		for i := 1; i <= ValueMap[g.Solved[2].getLastCard().Value]; i++ {
-			if m[InverseValueMap[i]+g.Solved[2].Suit] {
+		for i := 1; i <= ValueMap.m[g.Solved[2].getLastCard().GetValue()]; i++ {
+			if m[InverseValueMap.m[i]+g.Solved[2].GetSuit()] {
 				return false
 			}
-			m[InverseValueMap[i]+g.Solved[2].Suit] = true
+			m[InverseValueMap.m[i]+g.Solved[2].GetSuit()] = true
 		}
 	}
 	if g.Solved[3].getLastCard() != NilCard {
-		for i := 1; i <= ValueMap[g.Solved[3].getLastCard().Value]; i++ {
-			if m[InverseValueMap[i]+g.Solved[3].Suit] {
+		for i := 1; i <= ValueMap.m[g.Solved[3].getLastCard().GetValue()]; i++ {
+			if m[InverseValueMap.m[i]+g.Solved[3].GetSuit()] {
 				return false
 			}
-			m[InverseValueMap[i]+g.Solved[3].Suit] = true
+			m[InverseValueMap.m[i]+g.Solved[3].GetSuit()] = true
 		}
 	}
 	for _, s := range g.StandBy {
@@ -254,4 +262,18 @@ func (g *game) ValidateGame() bool {
 		return false
 	}
 	return true
+}
+
+func (g *Game) isFinished() bool {
+	if g.Solved[0].getLastCard().Value == "K" && g.Solved[1].getLastCard().Value == "K" && g.Solved[2].getLastCard().Value == "K" && g.Solved[3].getLastCard().Value == "K" {
+		return true
+	}
+	return false
+}
+
+func (g *Game) printFinished() {
+	fmt.Println("Congratulations!!!")
+	fmt.Println("******************")
+	fmt.Println("Moves are:")
+	fmt.Println(g.Moves)
 }

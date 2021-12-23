@@ -27,8 +27,12 @@ func NewSolvedPlace(suit string) *SolvedPlace {
 	}
 }
 
+func (sp *SolvedPlace) GetSuit() string {
+	return string(sp.Suit)
+}
+
 func (sp *SolvedPlace) canPlaced(card Card) bool {
-	if strings.ToLower(sp.Suit) == strings.ToLower(card.Suit) && ValueMap[card.Value] == ValueMap[sp.getLastCard().Value]+1 {
+	if strings.ToLower(sp.Suit) == strings.ToLower(card.Suit) && ValueMap.Get(card.Value) == ValueMap.Get(sp.getLastCard().Value)+1 {
 		return true
 	}
 	return false
@@ -48,11 +52,11 @@ func (sp *SolvedPlace) revertPush() (Card, error) {
 		return NilCard, errors.New("invalid pop")
 	}
 	c := sp.Card
-	if ValueMap[sp.Card.Value] == 1 {
+	if ValueMap.Get(sp.Card.Value) == 1 {
 		sp.Card = NilCard
 	} else {
-		v := ValueMap[sp.Card.Value] - 1
-		sp.Card.Value = InverseValueMap[v]
+		v := ValueMap.Get(sp.Card.Value) - 1
+		sp.Card.Value = InverseValueMap.Get(v)
 	}
 	return c, nil
 }

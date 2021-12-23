@@ -65,7 +65,7 @@ func (l *Line) canPlaced(card Card) bool {
 	if !isOppositeColor(lastCard.Suit, card.Suit) {
 		return false
 	}
-	if ValueMap[card.Value] == ValueMap[lastCard.Value]-1 {
+	if ValueMap.Get(card.Value) == ValueMap.Get(lastCard.Value)-1 {
 		return true
 	}
 	return false

@@ -7,8 +7,6 @@ import (
 	"os"
 )
 
-var seenMap = map[uint]bool{}
-
 // Source & Sink
 
 type Source interface {
@@ -41,38 +39,37 @@ func (m *Move) String() string {
 	return fmt.Sprintf("%v --> %v", m.source, m.sink)
 }
 
-//
-
-func solve(game *game) bool {
+func solve(game *Game) bool {
 	game.print()
-	if !game.ValidateGame() {
-		fmt.Println("Invalid game")
-		fmt.Println(game.Moves)
-		panic("Invalid game")
+	if game.isFinished() {
+		game.printFinished()
+		return true
 	}
-	// time.Sleep(1 * time.Second)
 	h, _ := game.Hash()
-	// if seenMap[h] == true {
-	// 	panic("unexpected situation")
-	// }
-	seenMap[h] = true
+	if SeenMap.Get(h) {
+		panic("solving a seen game!")
+	}
+	SeenMap.Set(h)
 
 	moves := game.FindMove()
+
 	for m := range moves {
+		game.Move(m)
 		h, _ = game.Hash()
-		fmt.Printf("Move is: %v", m)
-		anotherGame := game
-		anotherGame.Move(m)
-		if !seenMap[h] {
-			go solve(anotherGame)
+		if SeenMap.Get(h) {
+			game.RevertMove()
+		} else {
+			solved := solve(game)
+			if solved {
+				return true
+			}
 		}
 	}
-	// game.RevertMove()
-	// fmt.Println("-----------------")
 	return false
 }
 
 func Run() {
+	initMaps()
 	file, err := os.Open("data.in")
 
 	initialSolved := [4]*SolvedPlace{NewSolvedPlace("c"), NewSolvedPlace("h"), NewSolvedPlace("s"), NewSolvedPlace("d")}
@@ -124,4 +121,14 @@ func Run() {
 	// game.RevertMove()
 	// game.print()
 	solve(game)
+	// game.print()
+	// moves := game.FindMove()
+
+	// for m := range moves {
+	// 	var anotherGame Game
+	// 	copier.Copy(&anotherGame, game)
+	// 	anotherGame.Move(m)
+	// 	game.print()
+	// 	anotherGame.print()
+	// }
 }
